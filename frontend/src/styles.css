@@ -1,0 +1,96 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f6f8;
+  color: #123;
+}
+
+.app-page {
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.app-header {
+  max-width: 760px;
+  margin: 0 auto 16px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #0b3c5d;
+  color: #fff;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.app-header p {
+  margin: 6px 0 0;
+}
+
+.voice-card {
+  max-width: 760px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #d7e1e8;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.voice-top {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mic-btn {
+  border: 0;
+  border-radius: 8px;
+  background: #0b3c5d;
+  color: #fff;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.status-pill {
+  font-size: 0.9rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eaf2f8;
+}
+
+.chat-box {
+  display: grid;
+  gap: 10px;
+}
+
+.chat-line {
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.chat-line.assistant {
+  background: #f2f5f7;
+}
+
+.chat-line.user {
+  background: #e7f2fb;
+}
+
+@media (max-width: 600px) {
+  .app-page {
+    padding: 14px;
+  }
+
+  .voice-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
