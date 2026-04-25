@@ -56,7 +56,7 @@ function VoiceAssistant() {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Hi! Ask me about courses, admission, fees, placements, or location." },
+    { role: "assistant", text: "Hi! Ask me about SGSU admission, courses, fees, or eligibility.", source: "fallback" },
   ]);
 
   const recognitionRef = useRef(null);
@@ -64,6 +64,8 @@ function VoiceAssistant() {
   const isBusyRef = useRef(false);
   const selectedVoiceRef = useRef(null);
   const listeningLangRef = useRef("hi-IN");
+  const speechDebounceRef = useRef(null);
+  const lastProcessedRef = useRef({ text: "", at: 0 });
 
   const selectSingleFriendlyVoice = () => {
     try {
@@ -82,52 +84,23 @@ function VoiceAssistant() {
 
       selectedVoiceRef.current = chosen;
       listeningLangRef.current = chosen?.lang?.toLowerCase().startsWith("hi") ? "hi-IN" : "en-IN";
-      console.log("[VoiceAssistant] selected voice:", chosen?.name, chosen?.lang);
     } catch (error) {
-      console.error("[VoiceAssistant] voice selection failed:", error);
+      // Ignore voice selection errors.
     }
   };
 
   const normalizeDisplayText = (input) => {
-    try {
-      if (!input) return "";
-
-      return input
-        .split(/(\s+)/)
-        .map((segment) => {
-          if (!segment.trim()) return segment;
-
-          const leading = (segment.match(/^[^A-Za-z\u0900-\u097F0-9]*/) || [""])[0];
-          const trailing = (segment.match(/[^A-Za-z\u0900-\u097F0-9]*$/) || [""])[0];
-          const core = segment.slice(leading.length, segment.length - trailing.length);
-
-          if (!core) return segment;
-          const lower = core.toLowerCase();
-
-          if (/[\u0900-\u097F]/.test(core)) return segment;
-
-          if (ROMAN_HINDI_MAP[lower]) {
-            return `${leading}${ROMAN_HINDI_MAP[lower]}${trailing}`;
-          }
-
-          return segment;
-        })
-        .join("");
-    } catch (error) {
-      return input;
-    }
+    return input || "";
   };
 
   // Section 1: Small helper to add chat messages.
-  const addMessage = (role, text) => {
-    setMessages((prev) => [...prev, { role, text: normalizeDisplayText(text) }]);
+  const addMessage = (role, text, source = "") => {
+    setMessages((prev) => [...prev, { role, text: normalizeDisplayText(text), source }]);
   };
 
   // Section 2: Call backend API for AI response.
   const getAIAnswer = async (question) => {
     try {
-      console.log("[VoiceAssistant] API request:", { url: CHAT_API_URL, message: question });
-
       const response = await fetch(CHAT_API_URL, {
         method: "POST",
         headers: {
@@ -142,17 +115,15 @@ function VoiceAssistant() {
       }
 
       const data = await response.json();
-      console.log("[VoiceAssistant] API response:", data);
       const text = data?.reply?.trim();
 
       if (!text) {
         throw new Error("Empty AI response");
       }
 
-      return text;
+      return { reply: text, source: data?.source || "" };
     } catch (error) {
-      console.error("[VoiceAssistant] API error:", error);
-      return "Server not available";
+      return { reply: "Server not available", source: "fallback" };
     }
   };
 
@@ -168,6 +139,10 @@ function VoiceAssistant() {
 
   const stopRecognition = () => {
     try {
+      if (speechDebounceRef.current) {
+        clearTimeout(speechDebounceRef.current);
+        speechDebounceRef.current = null;
+      }
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
@@ -220,16 +195,14 @@ function VoiceAssistant() {
     stopRecognition();
     setIsListening(false);
 
-    console.log("[VoiceAssistant] user speech:", text);
     addMessage("user", text);
     setIsLoading(true);
     setStatus("Thinking...");
 
     try {
       const answer = await getAIAnswer(text);
-      console.log("[VoiceAssistant] AI response:", answer);
-      addMessage("assistant", answer);
-      await speak(answer);
+      addMessage("assistant", answer.reply, answer.source);
+      await speak(answer.reply);
     } finally {
       setIsLoading(false);
       isBusyRef.current = false;
@@ -257,17 +230,35 @@ function VoiceAssistant() {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
-      console.log("[VoiceAssistant] mic start");
       setIsListening(true);
       setStatus("Listening");
     };
 
     recognition.onresult = (event) => {
       const lastIndex = event.results.length - 1;
-      const spokenText = event.results[lastIndex][0]?.transcript?.trim();
-      if (spokenText) {
-        void handleUserSpeech(spokenText);
+      const result = event.results[lastIndex];
+      if (!result?.isFinal) return;
+
+      const spokenText = result[0]?.transcript?.trim();
+      if (!spokenText) return;
+
+      const normalized = spokenText.toLowerCase();
+      const now = Date.now();
+      if (
+        normalized === lastProcessedRef.current.text &&
+        now - lastProcessedRef.current.at < 4000
+      ) {
+        return;
       }
+
+      if (speechDebounceRef.current) {
+        clearTimeout(speechDebounceRef.current);
+      }
+
+      speechDebounceRef.current = setTimeout(() => {
+        lastProcessedRef.current = { text: normalized, at: Date.now() };
+        void handleUserSpeech(spokenText);
+      }, 1200);
     };
 
     recognition.onerror = (event) => {
@@ -308,6 +299,9 @@ function VoiceAssistant() {
         recognition.stop();
       } catch (error) {
         // Ignore cleanup errors.
+      }
+      if (speechDebounceRef.current) {
+        clearTimeout(speechDebounceRef.current);
       }
       keepListeningRef.current = false;
       if (window.speechSynthesis) {
@@ -366,6 +360,7 @@ function VoiceAssistant() {
         {messages.map((item, idx) => (
           <p key={`${item.role}-${idx}`} className={`chat-line ${item.role}`}>
             <strong>{item.role === "assistant" ? "Counsellor" : "You"}:</strong> {item.text}
+            {item.role === "assistant" && item.source ? <small> Source: {item.source}</small> : null}
           </p>
         ))}
       </div>

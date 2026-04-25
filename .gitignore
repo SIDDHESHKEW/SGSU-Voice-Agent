@@ -15,6 +15,7 @@ backend/.pytest_cache/
 backend/.venv/
 backend/venv/
 backend/*.pyc
+backend/.env
 
 # Editors / OS
 .vscode/*
