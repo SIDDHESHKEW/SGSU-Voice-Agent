@@ -2,6 +2,55 @@ import React, { useEffect, useRef, useState } from "react";
 
 const CHAT_API_URL = "http://localhost:8000/chat";
 
+const ROMAN_HINDI_MAP = {
+  namaste: "नमस्ते",
+  main: "मैं",
+  mai: "मैं",
+  mera: "मेरा",
+  meri: "मेरी",
+  mujhe: "मुझे",
+  aap: "आप",
+  aapka: "आपका",
+  aapki: "आपकी",
+  kya: "क्या",
+  kaise: "कैसे",
+  kahan: "कहां",
+  yahan: "यहां",
+  hai: "है",
+  hoon: "हूं",
+  hu: "हूं",
+  hain: "हैं",
+  haan: "हां",
+  nahi: "नहीं",
+  aur: "और",
+  ya: "या",
+  ke: "के",
+  ki: "की",
+  ka: "का",
+  se: "से",
+  mein: "में",
+  tum: "तुम",
+  karo: "करो",
+  karun: "करूं",
+  karu: "करूं",
+  karna: "करना",
+  bol: "बोल",
+  bolo: "बोलो",
+  pooch: "पूछ",
+  poochiye: "पूछिए",
+  batao: "बताओ",
+  bataye: "बताएं",
+  bilkul: "बिलकुल",
+  shukriya: "शुक्रिया",
+  dhanyavaad: "धन्यवाद",
+  admission: "admission",
+  course: "course",
+  courses: "courses",
+  fees: "fees",
+  university: "university",
+  counsellor: "counsellor",
+};
+
 function VoiceAssistant() {
   const [status, setStatus] = useState("Idle");
   const [isListening, setIsListening] = useState(false);
@@ -39,9 +88,39 @@ function VoiceAssistant() {
     }
   };
 
+  const normalizeDisplayText = (input) => {
+    try {
+      if (!input) return "";
+
+      return input
+        .split(/(\s+)/)
+        .map((segment) => {
+          if (!segment.trim()) return segment;
+
+          const leading = (segment.match(/^[^A-Za-z\u0900-\u097F0-9]*/) || [""])[0];
+          const trailing = (segment.match(/[^A-Za-z\u0900-\u097F0-9]*$/) || [""])[0];
+          const core = segment.slice(leading.length, segment.length - trailing.length);
+
+          if (!core) return segment;
+          const lower = core.toLowerCase();
+
+          if (/[\u0900-\u097F]/.test(core)) return segment;
+
+          if (ROMAN_HINDI_MAP[lower]) {
+            return `${leading}${ROMAN_HINDI_MAP[lower]}${trailing}`;
+          }
+
+          return segment;
+        })
+        .join("");
+    } catch (error) {
+      return input;
+    }
+  };
+
   // Section 1: Small helper to add chat messages.
   const addMessage = (role, text) => {
-    setMessages((prev) => [...prev, { role, text }]);
+    setMessages((prev) => [...prev, { role, text: normalizeDisplayText(text) }]);
   };
 
   // Section 2: Call backend API for AI response.

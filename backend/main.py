@@ -12,6 +12,104 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 logger = logging.getLogger("ai-counsellor-backend")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
+SYSTEM_PROMPT = """You are an AI counsellor for Scope Global Skills University (SGSU), Bhopal, Madhya Pradesh, India.
+
+ABOUT UNIVERSITY:
+Scope Global Skills University (SGSU) is a private university established in 2023 by the Madhya Pradesh Assembly. It is a skill-focused university aligned with NEP (National Education Policy) and NSQF framework. The university focuses on industry-oriented, practical education with strong placement support.
+
+RECOGNITION & FEATURES:
+
+* Recognized by UGC
+* Approved by AICTE
+* Associated with AIU
+* Industry collaborations (NASSCOM, ASDC, etc.)
+* Focus on skill-based learning + real-world training
+* Offers placement assistance and career support
+
+LOCATION:
+
+* Bhopal, Madhya Pradesh, India
+
+COURSES OFFERED:
+
+UNDERGRADUATE (UG):
+
+* B.Tech (CSE, AI/ML, Data Science, etc.)
+* BBA (Business, Hospitality, Management)
+* BCA (Cyber Security, Computer Applications)
+* B.Sc (Science streams like Physics, Chemistry, Biology, etc.)
+* B.Com (Commerce, Accounts, Retail Management)
+* BA (Arts)
+* B.Voc and other skill-based programs
+
+POSTGRADUATE (PG):
+
+* M.Tech
+* MBA
+* MCA
+* M.Sc
+* M.Com
+* MA
+* M.Voc
+
+DIPLOMA PROGRAMS:
+
+* Engineering Diplomas
+* Safety & Fire Engineering
+* Industrial Safety
+* Language Diplomas (French, German, Japanese)
+* Various skill-based diplomas
+
+COURSE DURATION:
+
+* UG courses: 3-4 years
+* PG courses: 2 years
+* Diploma: 1-3 years
+
+FEES STRUCTURE (APPROX):
+
+* B.Tech: Rs1.6L - Rs3.2L total
+* B.Sc / B.Com / BBA: Rs40K - Rs6L depending on course
+* PG courses: Rs20K - Rs1.5L approx
+* Diploma: Rs10K - Rs35K approx
+
+ADMISSION PROCESS:
+
+* Admission is merit-based (no entrance exam required)
+* Based on Class 12 marks (for UG)
+* Based on graduation marks (for PG)
+* Students must apply online through official website
+* Direct admission available
+
+ELIGIBILITY:
+
+* UG: 10+2 (45%-80% depending on course)
+* PG: Graduation with ~50% marks
+
+SPECIAL FEATURES:
+
+* Work Integrated Learning Programs (WILP)
+* Industry-linked curriculum
+* Hands-on practical training
+* Skill development focus
+* Career-oriented education
+
+PLACEMENTS:
+
+* Placement assistance provided
+* Industry partnerships for training and hiring
+
+TONE:
+
+* Friendly, helpful counsellor
+* Hinglish allowed
+* Short and clear answers
+
+SCRIPT RULE:
+Write Hindi words only in Devanagari script and English words only in English script.
+Do not write Hindi words in English letters.
+"""
+
 HINDI_HINTS = [
     "kya",
     "kaise",
@@ -52,38 +150,37 @@ def get_fallback_response(message: str) -> str:
 
         if "course" in msg or "program" in msg or "cse" in msg or "aiml" in msg:
             return (
-                "Sure! Humare popular programs hain: B.Tech CSE, B.Tech AIML, Data Science, "
-                "and Business. Aap interest batao, main best option suggest kar dunga."
+                "SGSU में लोकप्रिय programs हैं: B.Tech CSE, B.Tech AI/ML, Data Science, BBA, BCA और अन्य skill-based programs. "
+                "आप अपनी रुचि बताइए, मैं best option suggest कर दूंगा।"
             )
 
         if "admission" in msg or "apply" in msg or "eligibility" in msg:
             return (
-                "Admission simple hai: online form fill karo, documents upload karo, aur counselling complete karo. "
-                "Need ho to main step-by-step guide de sakta hoon."
+                "Admission merit-based है और entrance exam आवश्यक नहीं है। "
+                "आप official website पर online apply करें, documents upload करें, फिर counselling process complete करें।"
             )
 
         if "fee" in msg or "fees" in msg or "cost" in msg:
             return (
-                "Sample fee idea: B.Tech around 1.2L-1.8L per year (program-wise vary karta hai). "
-                "Exact fees ke liye official admission desk se latest structure verify karo."
+                "Approx fees: B.Tech Rs1.6L-Rs3.2L total, UG programs Rs40K-Rs6L, PG Rs20K-Rs1.5L, Diploma Rs10K-Rs35K. "
+                "Exact fees course-wise admission desk से verify करें।"
             )
 
         if "hindi" in msg:
-            return "Bilkul, main Hindi aur English dono samajhta hoon. Aap apna question poochiye."
+            return "बिलकुल, मैं Hindi और English दोनों समझता हूं। आप अपना सवाल पूछिए।"
 
         if "who are you" in msg or "tum kaun" in msg:
-            return "Main SGSU ka AI university counsellor assistant hoon. Main admission, courses aur fees mein help karta hoon."
+            return "मैं SGSU का AI university counsellor assistant हूं। मैं admission, courses, fees और eligibility में आपकी मदद करता हूं।"
 
         return (
-            "Welcome! Main university counsellor assistant hoon. Aap courses, admission, fees, "
-            "ya campus info pooch sakte ho."
+            "नमस्ते! मैं SGSU counsellor assistant हूं। आप courses, admission, fees, eligibility और campus location के बारे में पूछ सकते हैं।"
         )
     except Exception as ex:
         logger.exception("Fallback response failed: %s", ex)
         return "Sorry, abhi issue aa gaya. Please thodi der baad dobara try karo."
 
 
-def _call_gemini(message: str) -> Optional[str]:
+def _call_gemini(full_prompt: str) -> Optional[str]:
     """Call Gemini API and return text response, or None if unavailable."""
     try:
         api_key = GEMINI_API_KEY
@@ -96,10 +193,10 @@ def _call_gemini(message: str) -> Optional[str]:
             "models/gemini-2.5-flash:generateContent"
         )
 
-        lowered = (message or "").lower()
+        lowered = (full_prompt or "").lower()
         has_hindi_signal = any(token in lowered for token in HINDI_HINTS)
         response_style = (
-            "Reply in simple Hindi-English mix (Hinglish)."
+            "Reply in simple Hindi-English mix (Hinglish), but Hindi must be in Devanagari and English in English script."
             if has_hindi_signal
             else "Reply in clear English unless user asks for Hindi."
         )
@@ -110,7 +207,7 @@ def _call_gemini(message: str) -> Optional[str]:
             f"{response_style} "
             "Give 1-3 short sentences, but do not answer with only greeting words. "
             "If user asks about admission/courses/fees, provide concrete next steps. "
-            f"Student message: {message}"
+            f"{full_prompt}"
         )
 
         payload = {
@@ -155,7 +252,8 @@ def _call_gemini(message: str) -> Optional[str]:
 def get_ai_response(message: str) -> str:
     """Gemini-first response with fallback logic."""
     try:
-        ai_reply = _call_gemini(message)
+        full_prompt = SYSTEM_PROMPT + "\nUser: " + message + "\nCounsellor:"
+        ai_reply = _call_gemini(full_prompt)
         if ai_reply:
             low_quality_tokens = {"hi", "hi there", "hello", "haan bilkul", "bilkul", "great"}
             cleaned = ai_reply.strip().lower()
@@ -189,16 +287,22 @@ def chat(payload: ChatRequest) -> ChatResponse:
     try:
         user_message = (payload.message or "").strip()
         logger.info("Incoming /chat message: %s", user_message)
+        print("User:", user_message)
 
         if not user_message:
-            return ChatResponse(reply="Please message type karo, phir main help karta hoon.")
+            reply = "कृपया अपना संदेश लिखें, फिर मैं मदद करता हूं।"
+            print("AI:", reply)
+            return ChatResponse(reply=reply)
 
         reply = get_ai_response(user_message)
         logger.info("Outgoing /chat reply: %s", reply)
+        print("AI:", reply)
         return ChatResponse(reply=reply)
     except Exception as ex:
         logger.exception("/chat endpoint failed: %s", ex)
-        return ChatResponse(reply="Sorry, kuch error aa gaya. Please dobara try karo.")
+        reply = "क्षमा करें, कुछ त्रुटि आ गई। कृपया दोबारा प्रयास करें।"
+        print("AI:", reply)
+        return ChatResponse(reply=reply)
 
 
 if __name__ == "__main__":
