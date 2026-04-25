@@ -11,6 +11,33 @@ function VoiceAssistant() {
   ]);
 
   const recognitionRef = useRef(null);
+  const keepListeningRef = useRef(false);
+  const isBusyRef = useRef(false);
+  const selectedVoiceRef = useRef(null);
+  const listeningLangRef = useRef("hi-IN");
+
+  const selectSingleFriendlyVoice = () => {
+    try {
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      if (!voices.length) return;
+
+      const findByLang = (lang) => voices.find((v) => v.lang?.toLowerCase() === lang);
+      const findStarts = (prefix) => voices.find((v) => v.lang?.toLowerCase().startsWith(prefix));
+
+      const chosen =
+        findByLang("hi-in") ||
+        findByLang("en-in") ||
+        findStarts("hi") ||
+        findStarts("en") ||
+        voices[0];
+
+      selectedVoiceRef.current = chosen;
+      listeningLangRef.current = chosen?.lang?.toLowerCase().startsWith("hi") ? "hi-IN" : "en-IN";
+      console.log("[VoiceAssistant] selected voice:", chosen?.name, chosen?.lang);
+    } catch (error) {
+      console.error("[VoiceAssistant] voice selection failed:", error);
+    }
+  };
 
   // Section 1: Small helper to add chat messages.
   const addMessage = (role, text) => {
@@ -50,37 +77,90 @@ function VoiceAssistant() {
     }
   };
 
-  // Section 4: Speak assistant output.
-  const speak = (text) => {
+  const startRecognition = () => {
+    try {
+      if (!recognitionRef.current || isBusyRef.current) return;
+      recognitionRef.current.lang = listeningLangRef.current;
+      recognitionRef.current.start();
+    } catch (error) {
+      // start can throw if called too quickly; keep session alive and retry on next onend.
+    }
+  };
+
+  const stopRecognition = () => {
+    try {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    } catch (error) {
+      // Ignore stop race errors.
+    }
+  };
+
+  // Section 4: Speak assistant output with one fixed friendly voice.
+  const speak = (text) =>
+    new Promise((resolve) => {
     try {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-IN";
-      utterance.rate = 0.95;
+      const selectedVoice = selectedVoiceRef.current;
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+      } else {
+        utterance.lang = listeningLangRef.current;
+      }
+
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
       utterance.onstart = () => setStatus("Speaking");
-      utterance.onend = () => setStatus(isListening ? "Listening" : "Idle");
-      utterance.onerror = () => setStatus(isListening ? "Listening" : "Idle");
+      utterance.onend = () => {
+        setStatus(keepListeningRef.current ? "Listening" : "Idle");
+        resolve();
+      };
+      utterance.onerror = () => {
+        setStatus(keepListeningRef.current ? "Listening" : "Idle");
+        resolve();
+      };
 
       window.speechSynthesis.speak(utterance);
     } catch (error) {
-      setStatus(isListening ? "Listening" : "Idle");
+      setStatus(keepListeningRef.current ? "Listening" : "Idle");
+      resolve();
     }
-  };
+  });
 
   // Section 5: Process user speech end-to-end.
   const handleUserSpeech = async (text) => {
+    if (!text || isBusyRef.current) return;
+
+    isBusyRef.current = true;
+    stopRecognition();
+    setIsListening(false);
+
     console.log("[VoiceAssistant] user speech:", text);
     addMessage("user", text);
     setIsLoading(true);
     setStatus("Thinking...");
 
-    const answer = await getAIAnswer(text);
-    console.log("[VoiceAssistant] AI response:", answer);
-    addMessage("assistant", answer);
-    setIsLoading(false);
-    speak(answer);
+    try {
+      const answer = await getAIAnswer(text);
+      console.log("[VoiceAssistant] AI response:", answer);
+      addMessage("assistant", answer);
+      await speak(answer);
+    } finally {
+      setIsLoading(false);
+      isBusyRef.current = false;
+
+      if (keepListeningRef.current) {
+        startRecognition();
+      } else {
+        setStatus("Idle");
+      }
+    }
   };
 
   // Section 6: Setup SpeechRecognition once.
@@ -92,9 +172,10 @@ function VoiceAssistant() {
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = "en-IN";
+    recognition.lang = listeningLangRef.current;
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       console.log("[VoiceAssistant] mic start");
@@ -112,19 +193,33 @@ function VoiceAssistant() {
 
     recognition.onerror = (event) => {
       if (event.error === "not-allowed") {
+        keepListeningRef.current = false;
         addMessage("assistant", "Microphone permission denied. Please allow microphone access.");
       } else if (event.error === "no-speech") {
-        addMessage("assistant", "No speech detected. Please try again.");
+        if (keepListeningRef.current && !isBusyRef.current) {
+          setTimeout(() => startRecognition(), 220);
+        }
       } else {
         addMessage("assistant", "Voice recognition error. Please try again.");
+        if (keepListeningRef.current && !isBusyRef.current) {
+          setTimeout(() => startRecognition(), 300);
+        }
       }
-      setStatus("Idle");
+
+      if (!keepListeningRef.current) {
+        setStatus("Idle");
+      }
       setIsListening(false);
     };
 
     recognition.onend = () => {
       setIsListening(false);
-      setStatus("Idle");
+
+      if (keepListeningRef.current && !isBusyRef.current) {
+        setTimeout(() => startRecognition(), 250);
+      } else if (!keepListeningRef.current) {
+        setStatus("Idle");
+      }
     };
 
     recognitionRef.current = recognition;
@@ -135,8 +230,30 @@ function VoiceAssistant() {
       } catch (error) {
         // Ignore cleanup errors.
       }
+      keepListeningRef.current = false;
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleVoicesChanged = () => {
+      selectSingleFriendlyVoice();
+    };
+
+    try {
+      window.speechSynthesis?.addEventListener?.("voiceschanged", handleVoicesChanged);
+      handleVoicesChanged();
+    } catch (error) {
+      // Ignore unsupported event errors.
+    }
+
+    return () => {
+      try {
+        window.speechSynthesis?.removeEventListener?.("voiceschanged", handleVoicesChanged);
+      } catch (error) {
+        // Ignore cleanup errors.
       }
     };
   }, []);
@@ -145,16 +262,15 @@ function VoiceAssistant() {
   const toggleListening = () => {
     if (!recognitionRef.current) return;
 
-    if (isListening) {
-      recognitionRef.current.stop();
+    if (keepListeningRef.current) {
+      keepListeningRef.current = false;
+      stopRecognition();
+      window.speechSynthesis?.cancel?.();
       setIsListening(false);
       setStatus("Idle");
     } else {
-      try {
-        recognitionRef.current.start();
-      } catch (error) {
-        addMessage("assistant", "Could not start microphone. Please retry.");
-      }
+      keepListeningRef.current = true;
+      startRecognition();
     }
   };
 

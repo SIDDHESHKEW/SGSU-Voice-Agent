@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 
 import requests
@@ -9,6 +10,20 @@ from pydantic import BaseModel
 # Basic console logging setup.
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger("ai-counsellor-backend")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+
+HINDI_HINTS = [
+    "kya",
+    "kaise",
+    "mujhe",
+    "aap",
+    "hai",
+    "nahi",
+    "karun",
+    "admission",
+    "fees",
+    "hindi",
+]
 
 app = FastAPI(title="AI University Counsellor API")
 
@@ -53,6 +68,12 @@ def get_fallback_response(message: str) -> str:
                 "Exact fees ke liye official admission desk se latest structure verify karo."
             )
 
+        if "hindi" in msg:
+            return "Bilkul, main Hindi aur English dono samajhta hoon. Aap apna question poochiye."
+
+        if "who are you" in msg or "tum kaun" in msg:
+            return "Main SGSU ka AI university counsellor assistant hoon. Main admission, courses aur fees mein help karta hoon."
+
         return (
             "Welcome! Main university counsellor assistant hoon. Aap courses, admission, fees, "
             "ya campus info pooch sakte ho."
@@ -65,9 +86,9 @@ def get_fallback_response(message: str) -> str:
 def _call_gemini(message: str) -> Optional[str]:
     """Call Gemini API and return text response, or None if unavailable."""
     try:
-        api_key = "YOUR_GEMINI_API_KEY"
-        if not api_key or api_key == "YOUR_GEMINI_API_KEY":
-            logger.warning("Gemini API key is placeholder. Using fallback response.")
+        api_key = GEMINI_API_KEY
+        if not api_key:
+            logger.warning("Gemini API key is missing. Set GEMINI_API_KEY env var. Using fallback response.")
             return None
 
         endpoint = (
@@ -75,18 +96,29 @@ def _call_gemini(message: str) -> Optional[str]:
             "models/gemini-2.5-flash:generateContent"
         )
 
+        lowered = (message or "").lower()
+        has_hindi_signal = any(token in lowered for token in HINDI_HINTS)
+        response_style = (
+            "Reply in simple Hindi-English mix (Hinglish)."
+            if has_hindi_signal
+            else "Reply in clear English unless user asks for Hindi."
+        )
+
         prompt = (
-            "You are a friendly university counsellor. "
-            "Keep answer short, warm, and student-friendly. "
-            "Use simple Hindi + English mix naturally. "
+            "You are SGSU University AI Counsellor. "
+            "Be accurate, warm, and practical for student guidance. "
+            f"{response_style} "
+            "Give 1-3 short sentences, but do not answer with only greeting words. "
+            "If user asks about admission/courses/fees, provide concrete next steps. "
             f"Student message: {message}"
         )
 
         payload = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {
-                "temperature": 0.6,
-                "maxOutputTokens": 120,
+                "temperature": 0.35,
+                "topP": 0.9,
+                "maxOutputTokens": 220,
             },
         }
 
@@ -101,6 +133,8 @@ def _call_gemini(message: str) -> Optional[str]:
 
         if response.status_code != 200:
             logger.error("Gemini API failed: status=%s body=%s", response.status_code, response.text[:300])
+            if response.status_code == 403 and "leaked" in response.text.lower():
+                logger.error("Gemini rejected this key as leaked/blocked. Generate a new key and update GEMINI_API_KEY.")
             return None
 
         data = response.json()
@@ -123,6 +157,14 @@ def get_ai_response(message: str) -> str:
     try:
         ai_reply = _call_gemini(message)
         if ai_reply:
+            low_quality_tokens = {"hi", "hi there", "hello", "haan bilkul", "bilkul", "great"}
+            cleaned = ai_reply.strip().lower()
+            short_reply = len(cleaned.split()) <= 2
+            generic_reply = cleaned in low_quality_tokens
+            if short_reply or generic_reply:
+                logger.warning("Gemini reply too short/generic, switching to fallback for better quality.")
+                return get_fallback_response(message)
+
             logger.info("AI response generated from Gemini.")
             return ai_reply
 

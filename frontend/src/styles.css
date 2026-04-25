@@ -1,14 +1,15 @@
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 
 :root {
-  --primary: #0b3c5d;
-  --secondary: #1d5d8f;
-  --background: #f5f7fa;
-  --text: #1a1a1a;
+  --primary: #003366;
+  --secondary: #f37021;
+  --background: #f8f9fa;
+  --text: #333333;
   --card: #ffffff;
-  --line: #d9e2ec;
-  --shadow-soft: 0 10px 30px rgba(11, 60, 93, 0.1);
-  --shadow-glow: 0 0 0 4px rgba(29, 93, 143, 0.2), 0 14px 28px rgba(11, 60, 93, 0.25);
+  --line: #d9dee6;
+  --deep-accent: #a52a2a;
+  --shadow-soft: 0 10px 26px rgba(0, 51, 102, 0.12);
+  --shadow-glow: 0 0 0 4px rgba(243, 112, 33, 0.2), 0 14px 30px rgba(0, 51, 102, 0.26);
 }
 
 * {
@@ -18,7 +19,7 @@
 body {
   margin: 0;
   font-family: "Manrope", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 20% 20%, #ffffff 0%, var(--background) 55%, #eaf0f6 100%);
+  background: radial-gradient(circle at 20% 18%, #ffffff 0%, var(--background) 60%, #eef2f6 100%);
   color: var(--text);
 }
 
@@ -37,11 +38,24 @@ body {
   padding: 22px 24px;
   border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0)),
-    linear-gradient(150deg, var(--primary) 0%, var(--secondary) 55%, #0a2f4a 100%);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0)),
+    linear-gradient(150deg, var(--primary) 0%, #0f4a85 62%, #022949 100%);
   color: #fff;
   box-shadow: var(--shadow-soft);
   border: 1px solid rgba(255, 255, 255, 0.14);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-header::after {
+  content: "";
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  top: -70px;
+  right: -70px;
+  background: radial-gradient(circle, rgba(243, 112, 33, 0.38), rgba(243, 112, 33, 0));
 }
 
 .app-header h1 {
@@ -54,7 +68,7 @@ body {
 .app-header p {
   margin: 8px 0 0;
   font-size: 0.98rem;
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.94);
 }
 
 .voice-card {
@@ -77,7 +91,7 @@ body {
 .mic-btn {
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(140deg, var(--primary) 0%, var(--secondary) 100%);
+  background: linear-gradient(140deg, var(--primary) 0%, #004b95 60%, var(--secondary) 100%);
   color: #fff;
   padding: 11px 20px;
   font-weight: 700;
@@ -102,9 +116,9 @@ body {
   font-weight: 600;
   padding: 7px 12px;
   border-radius: 999px;
-  border: 1px solid #cfe0ef;
-  background: #edf4fa;
-  color: var(--primary);
+  border: 1px solid #f2c3a2;
+  background: #fff4ec;
+  color: #8d3d0e;
 }
 
 .chat-box {
@@ -124,15 +138,15 @@ body {
 
 .chat-line.assistant {
   align-self: flex-start;
-  background: linear-gradient(180deg, #f8fbfe 0%, #eef4fa 100%);
-  border: 1px solid #d6e4f0;
-  color: #1e2f3f;
+  background: linear-gradient(180deg, #fcfdff 0%, #f1f5f9 100%);
+  border: 1px solid #d8e0ea;
+  color: #1f2f40;
 }
 
 .chat-line.user {
   align-self: flex-end;
-  background: linear-gradient(180deg, #1f5f90 0%, #0b3c5d 100%);
-  border: 1px solid #0a3654;
+  background: linear-gradient(180deg, #0f4a85 0%, #003366 100%);
+  border: 1px solid #0a4174;
   color: #ffffff;
 }
 
