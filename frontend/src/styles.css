@@ -1,96 +1,170 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --primary: #0b3c5d;
+  --secondary: #1d5d8f;
+  --background: #f5f7fa;
+  --text: #1a1a1a;
+  --card: #ffffff;
+  --line: #d9e2ec;
+  --shadow-soft: 0 10px 30px rgba(11, 60, 93, 0.1);
+  --shadow-glow: 0 0 0 4px rgba(29, 93, 143, 0.2), 0 14px 28px rgba(11, 60, 93, 0.25);
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f3f6f8;
-  color: #123;
+  font-family: "Manrope", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at 20% 20%, #ffffff 0%, var(--background) 55%, #eaf0f6 100%);
+  color: var(--text);
+}
+
+#root {
+  min-height: 100vh;
 }
 
 .app-page {
   min-height: 100vh;
-  padding: 24px;
+  padding: 32px 20px;
 }
 
 .app-header {
-  max-width: 760px;
-  margin: 0 auto 16px;
-  padding: 16px;
-  border-radius: 10px;
-  background: #0b3c5d;
+  max-width: 860px;
+  margin: 0 auto 22px;
+  padding: 22px 24px;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0)),
+    linear-gradient(150deg, var(--primary) 0%, var(--secondary) 55%, #0a2f4a 100%);
   color: #fff;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.25px;
 }
 
 .app-header p {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
+  font-size: 0.98rem;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .voice-card {
-  max-width: 760px;
+  max-width: 860px;
   margin: 0 auto;
-  background: #fff;
-  border: 1px solid #d7e1e8;
-  border-radius: 10px;
-  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
 }
 
 .voice-top {
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .mic-btn {
   border: 0;
-  border-radius: 8px;
-  background: #0b3c5d;
+  border-radius: 999px;
+  background: linear-gradient(140deg, var(--primary) 0%, var(--secondary) 100%);
   color: #fff;
-  padding: 10px 14px;
+  padding: 11px 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
   cursor: pointer;
+  transition: transform 180ms ease, box-shadow 220ms ease;
+  box-shadow: 0 8px 18px rgba(11, 60, 93, 0.25);
+}
+
+.mic-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(11, 60, 93, 0.3);
+}
+
+.mic-btn.active {
+  box-shadow: var(--shadow-glow);
+  animation: micPulse 1.7s ease-in-out infinite;
 }
 
 .status-pill {
-  font-size: 0.9rem;
-  padding: 6px 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 7px 12px;
   border-radius: 999px;
-  background: #eaf2f8;
+  border: 1px solid #cfe0ef;
+  background: #edf4fa;
+  color: var(--primary);
 }
 
 .chat-box {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
 .chat-line {
   margin: 0;
-  padding: 10px;
-  border-radius: 8px;
-  line-height: 1.4;
+  padding: 12px 14px;
+  border-radius: 14px;
+  line-height: 1.5;
+  max-width: 82%;
+  box-shadow: 0 4px 12px rgba(18, 35, 52, 0.08);
 }
 
 .chat-line.assistant {
-  background: #f2f5f7;
+  align-self: flex-start;
+  background: linear-gradient(180deg, #f8fbfe 0%, #eef4fa 100%);
+  border: 1px solid #d6e4f0;
+  color: #1e2f3f;
 }
 
 .chat-line.user {
-  background: #e7f2fb;
+  align-self: flex-end;
+  background: linear-gradient(180deg, #1f5f90 0%, #0b3c5d 100%);
+  border: 1px solid #0a3654;
+  color: #ffffff;
 }
 
-@media (max-width: 600px) {
+@keyframes micPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(29, 93, 143, 0.28), 0 14px 28px rgba(11, 60, 93, 0.25);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(29, 93, 143, 0), 0 14px 28px rgba(11, 60, 93, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 93, 143, 0), 0 14px 28px rgba(11, 60, 93, 0.25);
+  }
+}
+
+@media (max-width: 680px) {
   .app-page {
-    padding: 14px;
+    padding: 16px 12px;
+  }
+
+  .app-header,
+  .voice-card {
+    border-radius: 14px;
+    padding: 16px;
   }
 
   .voice-top {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .chat-line {
+    max-width: 100%;
   }
 }

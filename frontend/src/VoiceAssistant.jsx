@@ -161,7 +161,7 @@ function VoiceAssistant() {
   return (
     <section className="voice-card">
       <div className="voice-top">
-        <button className="mic-btn" onClick={toggleListening} type="button">
+        <button className={`mic-btn ${isListening ? "active" : ""}`} onClick={toggleListening} type="button">
           {isListening ? "Stop Mic" : "Start Mic"}
         </button>
         <span className="status-pill">Status: {isLoading ? "Thinking..." : status}</span>
